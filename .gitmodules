@@ -1,0 +1,6 @@
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:rishFilet/portfolio-website-2025.git
+[submodule "backend-strapi"]
+	path = backend-strapi
+	url = git@github.com:rishFilet/portfolio-website-2025.git
