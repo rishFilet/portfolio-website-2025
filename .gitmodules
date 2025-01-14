@@ -1,6 +1,6 @@
 [submodule "frontend"]
 	path = frontend
-	url = git@github.com:rishFilet/portfolio-website-2025.git
+	url = git@github.com:rishFilet/portfolio-website-nextjs-frontend.git
 [submodule "backend-strapi"]
 	path = backend-strapi
-	url = git@github.com:rishFilet/portfolio-website-2025.git
+	url = git@github.com:rishFilet/portfolio-website-strapi-supabase-backend.git
