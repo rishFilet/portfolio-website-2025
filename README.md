@@ -1,5 +1,3 @@
-Here's the markdown version ready for your GitHub README.md file:
-
 # Fluid Theme Switcher 
 
 ## 🌓 Background
