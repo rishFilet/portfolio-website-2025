@@ -4,6 +4,7 @@
 -- FOR PRODUCTION: Run this in Supabase SQL Editor
 -- Add identity records for existing users (Production version - uses UUID)
 INSERT INTO auth.identities (
+    provider_id,
     id,
     user_id,
     identity_data,
@@ -13,8 +14,9 @@ INSERT INTO auth.identities (
     updated_at
 )
 SELECT 
-    u.id,  -- Production uses UUID type, no casting needed
-    u.id,
+    u.id,  -- provider_id is the same as user id for email provider
+    u.id,  -- id is also the user id
+    u.id,  -- user_id
     jsonb_build_object(
         'sub', u.id::text,
         'email', u.email,
