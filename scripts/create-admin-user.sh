@@ -210,3 +210,4 @@ else
     echo "You can try option 3 to generate SQL and run it manually in Supabase Studio"
 fi
 
+

@@ -37,3 +37,4 @@ CREATE POLICY "Allow authenticated users to delete themes"
   TO authenticated
   USING (true);
 
+

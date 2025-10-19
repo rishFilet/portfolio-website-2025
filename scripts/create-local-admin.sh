@@ -82,3 +82,4 @@ else
     echo -e "${YELLOW}⚠ User might already exist or there was an error${NC}"
 fi
 
+

@@ -137,3 +137,4 @@ echo "   - Check logs: docker logs $STORAGE_CONTAINER"
 echo "   - Verify Kong routing is correct"
 echo ""
 
+

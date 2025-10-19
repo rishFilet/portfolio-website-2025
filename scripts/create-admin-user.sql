@@ -41,3 +41,4 @@ WHERE email = 'admin@example.com';  -- ⬅️ Use your email here
 -- IMPORTANT: After creating the user, you can log in at:
 -- http://localhost:3002/login
 
+

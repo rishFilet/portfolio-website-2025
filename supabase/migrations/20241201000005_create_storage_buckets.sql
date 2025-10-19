@@ -37,3 +37,4 @@ CREATE POLICY "Authenticated users can delete images" ON storage.objects
   TO authenticated
   USING (bucket_id IN ('images', 'hero-images', 'logos', 'favicons', 'theme-logos', 'theme-hero-images'));
 
+
