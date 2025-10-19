@@ -1,139 +1,92 @@
-# Cookieless Client Fix - Public Page Data Fetching
+# Production Deployment Fix - Truncated Anon Key
 
 ## The Problem
 
-Public pages (home, blog, projects) were showing hardcoded fallback content instead of database content for unauthenticated users.
+Public pages (home, blog, projects) were showing hardcoded fallback content on production, but working correctly locally.
 
 **Root Cause:**
+The `NEXT_PUBLIC_SUPABASE_ANON_KEY` environment variable in Netlify was **truncated**, containing only 1 part of the JWT instead of the required 3 parts.
 
-- Public pages used `getLandingPageData()` from `queries.ts`
-- This function uses `createServerSupabaseClient()` from `@supabase/ssr` which depends on authentication cookies
-- When users aren't logged in → No cookies → Query fails → Returns `null`
-- Pages fall back to hardcoded defaults: "Rishi Khan", "Creative Engineer & Full Stack Developer", etc.
+**Error:**
+```json
+{
+  "code": "PGRST301",
+  "message": "Expected 3 parts in JWT; got 1"
+}
+```
 
 ## The Solution
 
-Created a **cookieless Supabase client** for public pages that works regardless of authentication state.
+### 1. Fix Environment Variable in Netlify
 
-### Files Created
+Updated `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Netlify with the complete JWT:
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+```
 
-**`frontend/src/lib/supabase/queries-public.ts`**
+### 2. Architectural Improvement - Cookieless Client
 
-- Cookieless query functions for public data
-- Uses `createClient()` from `@supabase/supabase-js` (not the SSR package)
+While fixing the anon key issue, we also improved the architecture by creating a cookieless Supabase client for public pages.
+
+**Created:** `frontend/src/lib/supabase/queries-public.ts`
+- Uses `createClient()` from `@supabase/supabase-js` (not SSR package)
 - Configured with `persistSession: false` to avoid auth dependencies
+- Better separation of concerns: public queries vs authenticated queries
 
-### Files Modified
+**Updated Pages:**
+- `frontend/src/app/page.tsx` → uses `getPublicLandingPageData()`
+- `frontend/src/app/blog/page.tsx` → uses `getPublicBlogPosts()`
+- `frontend/src/app/projects/page.tsx` → uses `getPublicProjectPosts()`
 
-**`frontend/src/app/page.tsx`**
+## Why Both Fixes Matter
 
-- Changed: `getLandingPageData()` → `getPublicLandingPageData()`
-- Changed: `getLatestBlogPost()` → `getPublicLatestBlogPost()`
-
-**`frontend/src/app/blog/page.tsx`**
-
-- Changed: `getBlogPosts()` → `getPublicBlogPosts()`
-
-**`frontend/src/app/projects/page.tsx`**
-
-- Changed: `getProjectPosts()` → `getPublicProjectPosts()`
-
-### Files Kept Unchanged
-
-**`frontend/src/lib/supabase/queries.ts`**
-
-- Keep for admin pages (they need cookie-based auth)
-
-**`frontend/src/lib/supabase/server.ts`**
-
-- Keep for admin authentication
-
-**All admin pages**
-
-- Continue using cookie-based client for authenticated operations
-
-## How It Works
-
-### Before (Cookie-Dependent)
-
-```typescript
-// queries.ts
-const supabase = await createServerSupabaseClient(); // Needs cookies
-```
-
-**Result:** Unauthenticated users → Failed queries → Fallback content
-
-### After (Cookieless)
-
-```typescript
-// queries-public.ts
-const supabase = createClient(url, key, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-});
-```
-
-**Result:** All users → Successful queries → Database content ✅
+1. **Truncated Anon Key** - The immediate issue that broke all Supabase queries
+2. **Cookieless Client** - Better architecture that ensures public data fetching doesn't depend on authentication state
 
 ## Testing
 
-### Local
-
+### Verify Supabase Connection
 ```bash
-cd frontend
-npm run dev
-# Visit http://localhost:3004
-# Should see database content (not "Rishi Khan")
+curl https://rishikhan.dev/api/debug-queries | jq .
 ```
 
-### Production
+Should show successful queries with data.
 
+### Verify Landing Page Content
 ```bash
-# After deployment
 curl -s https://rishikhan.dev | grep -o '<h1[^>]*>.*</h1>'
-# Should show your actual database H1, not "Rishi Khan"
 ```
 
-### Verification
+Should show database content, not fallback content.
 
-1. ✅ Unauthenticated users see database content
-2. ✅ New visitors (no cookies) see database content
-3. ✅ Incognito mode shows database content
-4. ✅ Content same for all users regardless of auth state
+## Key Learnings
 
-## Key Benefits
+1. **Environment Variables:** Always verify that long values (like JWTs) aren't truncated when copying to deployment platforms
+2. **Git Submodules:** Remember to commit changes in both the submodule AND update the parent repo's submodule reference
+3. **Debug Endpoints:** Creating temporary debug endpoints (`/api/debug-queries`) can quickly diagnose production issues
 
-1. **Consistent behavior** - All users see the same content
-2. **No auth dependency** - Public data doesn't require authentication
-3. **Works immediately** - No cache warming or delays
-4. **Simple solution** - Just use the right client for the job
+## Files Changed
 
-## Other Fixes Applied
+### Code (Kept)
+- `frontend/src/lib/supabase/queries-public.ts` (new)
+- `frontend/src/app/page.tsx` (updated to use public queries)
+- `frontend/src/app/blog/page.tsx` (updated to use public queries)
+- `frontend/src/app/projects/page.tsx` (updated to use public queries)
 
-These were real issues fixed during development:
+### Code (Removed)
+- `frontend/src/app/api/debug-queries/route.ts` (temporary debug endpoint)
 
-1. **Image Optimization** (`next.config.ts`)
-
-   - Added `api.supabase.rishikhan.dev` to `remotePatterns`
-   - Fixes: "is not an allowed pattern" errors
-
-2. **Database Schema** (migrations)
-
-   - Singleton constraints for `landing_page_content` and `site_settings`
-   - Storage bucket policies for public image access
-   - RLS policies for authenticated users
-
-3. **Query Updates** (`queries.ts`)
-   - Changed `.single()` to `.limit(1)` for singleton tables
-   - Fixes queries when multiple rows exist
+### Other Fixes Applied
+- **Image Optimization** (`next.config.ts`): Added `api.supabase.rishikhan.dev` to `remotePatterns`
+- **Database Schema** (migrations): Singleton constraints for `landing_page_content` and `site_settings`
+- **Favicon** (`icon.tsx`): Changed `.single()` to `.order().limit(1)` for singleton tables
 
 ## Summary
 
-The issue was NOT caching - it was **authentication-dependent queries** for public data.
+**Problem:** Truncated anon key in Netlify → All Supabase queries failed → Fallback content displayed
 
-**Solution:** Use cookieless client (`queries-public.ts`) for public pages, keep cookie-based client (`queries.ts`) for admin pages.
+**Solution:** 
+1. Fixed truncated anon key in Netlify environment variables
+2. Implemented cookieless client for better architecture
 
-Simple, clean, correct. ✅
+**Result:** ✅ Production site now shows database content correctly
